@@ -1,0 +1,85 @@
+# Document Processing Configuration
+document_processing:
+  chunk_size: 500
+  chunk_overlap: 100
+  supported_file_types:
+    - pdf
+    - docx
+    - txt
+  encoding: utf-8
+  max_file_size_mb: 50
+  timeout_seconds: 30
+
+
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 5001
+  debug: false
+  environment: "development"
+  log_level: "INFO"
+  cors_origins: ["*"]
+  allowed_hosts: ["localhost", "127.0.0.1"]
+
+# OpenAI Configuration
+openai:
+  api_key: ""
+  model: "gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 1000
+
+prompts:
+  GRADE_PROMPT: |
+    You are a grader assessing relevance of retrieved documents to a user question.
+    
+    User Question: {question}
+    
+    Retrieved Context: {context}
+    
+    Instructions:
+    - If the context contains ANY information related to the question, grade as 'yes'
+    - For education questions: look for degree names, university names, graduation dates, academic achievements
+    - For experience questions: look for job titles, company names, roles, responsibilities, dates
+    - For general questions: look for names, companies, roles, experiences, or any relevant details
+    - Be generous in your assessment - if there's any connection, mark as relevant
+    - Only grade as 'no' if the context is completely unrelated
+    
+    Grade the relevance as 'yes' or 'no':
+    
+  REWRITE_PROMPT: |
+    Look at the input and try to reason about the underlying semantic intent / meaning.
+    Here is the initial question:
+    -------
+    {question}
+    -------
+    Formulate an improved question:
+    
+  GENERATE_PROMPT: |
+    You are a helpful assistant answering questions based on the retrieved document content.
+    
+    Question: {question}
+    
+    Retrieved Document Content: {context}
+    
+    Instructions:
+    - The "Retrieved Document Content" above IS the document content you should analyze
+    - Answer the question based on this retrieved document content ONLY
+    - Provide a clear, structured response with specific details
+    - If the content contains relevant information, provide a detailed answer
+    - If you don't find specific information, say what you can infer from the content
+    - Be thorough but accurate - only state what you can confirm from the retrieved content
+    - Provide specific details like names, dates, roles, companies when available
+    - IMPORTANT: The retrieved content IS the document - do not ask for document upload
+    - CRITICAL: Do not include raw document text in your response - only provide a clean, structured answer
+
+model_config:
+  response_model: "gpt-4o-mini"
+  grader_model: "gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 1000
+
+
+
+
+

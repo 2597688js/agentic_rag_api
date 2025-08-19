@@ -1,83 +1,81 @@
-# Document Processing Configuration
-document_processing:
-  chunk_size: 500
-  chunk_overlap: 100
-  supported_file_types:
-    - pdf
-    - docx
-    - txt
-  encoding: utf-8
-  max_file_size_mb: 50
-  timeout_seconds: 30
-
-
-
-# API Configuration
-api:
-  host: "0.0.0.0"
-  port: 5001
-  debug: false
-  environment: "development"
-  log_level: "INFO"
-  cors_origins: ["*"]
-  allowed_hosts: ["localhost", "127.0.0.1"]
+# Agentic RAG API Configuration
 
 # OpenAI Configuration
 openai:
-  api_key: ""
-  model: "gpt-4o-mini"
+  api_key: ""  # Will be overridden by environment variable
+  model: "gpt-3.5-turbo"
   temperature: 0.7
   max_tokens: 1000
 
+# Model Configuration
+model_config:
+  response_model: "gpt-3.5-turbo"
+  grader_model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000
+
+# API Configuration
+api:
+  environment: "development"
+  host: "0.0.0.0"
+  port: 5001
+  debug: true
+  log_level: "INFO"
+  cors_origins: ["http://localhost:3000", "http://localhost:8501", "http://127.0.0.1:8501"]
+  allowed_hosts: ["localhost", "127.0.0.1", "0.0.0.0"]
+
+# Document Processing
+document:
+  chunk_size: 1000
+  chunk_overlap: 200
+  max_chunks: 100
+
+# RAG Configuration
+rag:
+  top_k: 5
+  similarity_threshold: 0.7
+  max_context_length: 4000
+
+# Prompts Configuration
 prompts:
   GRADE_PROMPT: |
-    You are a grader assessing relevance of retrieved documents to a user question.
-    
-    User Question: {question}
-    
-    Retrieved Context: {context}
-    
-    Instructions:
-    - If the context contains ANY information related to the question, grade as 'yes'
-    - For education questions: look for degree names, university names, graduation dates, academic achievements
-    - For experience questions: look for job titles, company names, roles, responsibilities, dates
-    - For general questions: look for names, companies, roles, experiences, or any relevant details
-    - Be generous in your assessment - if there's any connection, mark as relevant
-    - Only grade as 'no' if the context is completely unrelated
-    
-    Grade the relevance as 'yes' or 'no':
-    
-  REWRITE_PROMPT: |
-    Look at the input and try to reason about the underlying semantic intent / meaning.
-    Here is the initial question:
-    -------
-    {question}
-    -------
-    Formulate an improved question:
-    
-  GENERATE_PROMPT: |
-    You are a helpful assistant answering questions based on the retrieved document content.
+    You are a document relevance grader. Your task is to determine if the retrieved documents are relevant to the user's question.
     
     Question: {question}
+    Retrieved Context: {context}
     
-    Retrieved Document Content: {context}
+    Grade the relevance using a binary score:
+    - "yes" if the documents are relevant and can help answer the question
+    - "no" if the documents are not relevant or insufficient
     
-    Instructions:
-    - The "Retrieved Document Content" above IS the document content you should analyze
-    - Answer the question based on this retrieved document content ONLY
-    - Provide a clear, structured response with specific details
-    - If the content contains relevant information, provide a detailed answer
-    - If you don't find specific information, say what you can infer from the content
-    - Be thorough but accurate - only state what you can confirm from the retrieved content
-    - Provide specific details like names, dates, roles, companies when available
-    - IMPORTANT: The retrieved content IS the document - do not ask for document upload
-    - CRITICAL: Do not include raw document text in your response - only provide a clean, structured answer
-
-model_config:
-  response_model: "gpt-4o-mini"
-  grader_model: "gpt-4o-mini"
-  temperature: 0.7
-  max_tokens: 1000
+    Consider:
+    1. Does the context contain information directly related to the question?
+    2. Is there enough detail to provide a meaningful answer?
+    3. Are the documents from reliable sources?
+    
+    Binary Score:
+  REWRITE_PROMPT: |
+    You are a question rewriter. The user's question was not answered well by the retrieved documents.
+    
+    Original Question: {question}
+    
+    Please rewrite the question to be more specific, clear, or focused. Consider:
+    1. Breaking down complex questions into simpler parts
+    2. Adding context or clarification
+    3. Making the question more searchable
+    4. Using different terminology that might match the available documents
+    
+    Rewritten Question:
+  
+  GENERATE_PROMPT: |
+    You are an AI assistant that answers questions based on retrieved document content.
+    
+    Question: {question}
+    Retrieved Context: {context}
+    
+    Please provide a comprehensive answer based on the context provided. If the context doesn't contain enough information to answer the question completely, acknowledge what you can answer and what information is missing.
+    
+    Answer:
 
 
 

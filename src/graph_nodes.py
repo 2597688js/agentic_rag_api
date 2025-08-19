@@ -3,7 +3,6 @@ from langchain.chat_models import init_chat_model
 from pydantic import BaseModel, Field
 from typing import Literal
 from langgraph.graph import MessagesState
-from src.config import ConfigManager
 from src.pydantic_models import GradeDocuments
 import logging
 
@@ -11,7 +10,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 # --- get the config ---
-config = ConfigManager()._config
+try:
+    from src.config import ConfigManager
+    config = ConfigManager()._config
+except Exception as e:
+    print(f"Failed to load config in graph_nodes.py: {e}, using fallback")
+    config = {
+        'model_config': {
+            'response_model': 'gpt-3.5-turbo',
+            'grader_model': 'gpt-3.5-turbo',
+            'temperature': 0.7
+        },
+        'prompts': {
+            'GRADE_PROMPT': 'You are a document relevance grader. Your task is to determine if the retrieved documents are relevant to the user\'s question.\n\nQuestion: {question}\nRetrieved Context: {context}\n\nGrade the relevance using a binary score:\n- "yes" if the documents are relevant and can help answer the question\n- "no" if the documents are not relevant or insufficient\n\nBinary Score:',
+            'REWRITE_PROMPT': 'You are a question rewriter. The user\'s question was not answered well by the retrieved documents.\n\nOriginal Question: {question}\n\nPlease rewrite the question to be more specific, clear, or focused.\n\nRewritten Question:',
+            'GENERATE_PROMPT': 'You are an AI assistant that answers questions based on retrieved document content.\n\nQuestion: {question}\nRetrieved Context: {context}\n\nPlease provide a comprehensive answer based on the context provided. If the context doesn\'t contain enough information to answer the question completely, acknowledge what you can answer and what information is missing.\n\nAnswer:'
+        }
+    }
 
 # --- initialize the models ---
 response_model = init_chat_model(

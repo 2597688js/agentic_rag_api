@@ -8,11 +8,21 @@ class GradeDocuments(BaseModel):
         description="Relevance score: 'yes' if relevant, or 'no' if not relevant"
     )
 
+class FileContent(BaseModel):
+    name: str
+    content: str  # base64 encoded content
+    type: str = "file"
+
 class RAGRequest(BaseModel):
     query: str
-    file_paths_urls: List[str]
+    file_paths_urls: List[str | FileContent]  # Can be URLs or file content objects
 
 class RAGResponse(BaseModel):
-    answer: str
-    sources: List[str]
-    nodes_executed: List[str]
+    response: str
+    top_3_retrieved_docs: List[str]
+    metadata: List[dict]
+
+class FileUploadResponse(BaseModel):
+    file_id: str
+    filename: str
+    message: str

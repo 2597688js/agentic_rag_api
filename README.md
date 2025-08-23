@@ -30,12 +30,14 @@ This agentic approach ensures higher quality answers by allowing the system to i
 
 ## 🚀 Features
 
-- **Intelligent Document Processing**: Supports PDF, DOCX, TXT files and web URLs
+- **Intelligent Document Processing**: Supports PDF, DOCX, DOC, TXT files and web URLs
+- **File Upload API**: RESTful endpoints for file management with unique file IDs
 - **Advanced RAG Workflow**: Uses LangGraph for multi-step reasoning and planning
 - **Vector Search**: In-memory vector storage with OpenAI embeddings
 - **Document Grading**: AI-powered relevance assessment
 - **Production Ready**: Environment-based configuration, logging, and security features
 - **RESTful API**: FastAPI-based with automatic documentation
+- **Docker Support**: Production-ready containerization
 
 ## 📋 Table of Contents
 
@@ -60,7 +62,7 @@ This agentic approach ensures higher quality answers by allowing the system to i
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd agentic_rag_api_deploy
+   cd 2_agentic_rag_api_deploy
    ```
 
 2. **Create virtual environment**
@@ -87,8 +89,6 @@ This agentic approach ensures higher quality answers by allowing the system to i
 5. **Run the application**
    ```bash
    python app.py
-   # Or use the production script
-   python start.py
    ```
 
 The API will be available at `http://localhost:5001`
@@ -98,13 +98,13 @@ The API will be available at `http://localhost:5001`
 ### Project Structure
 
 ```
-agentic_rag_api_deploy/
+2_agentic_rag_api_deploy/
 ├── app.py                 # FastAPI application entry point
-├── start.py              # Production startup script
+├── Dockerfile            # Production Docker configuration
 ├── requirements.txt      # Python dependencies
-├── env.example          # Environment variables template
 ├── README.md            # This documentation
-├── .gitignore           # Git ignore rules
+├── logs/                # Application logs directory
+├── uploads/             # File upload directory
 └── src/
     ├── __init__.py
     ├── config/
@@ -121,7 +121,7 @@ agentic_rag_api_deploy/
 ### Core Components
 
 #### 1. **Document Processing Pipeline**
-- **DocumentProcessor**: Loads documents from various sources (PDF, DOCX, TXT, URLs)
+- **DocumentProcessor**: Loads documents from various sources (PDF, DOCX, DOC, TXT, URLs)
 - **DocumentSplitter**: Splits documents into chunks for vector storage
 - **DocumentRetriever**: Manages vector search and retrieval operations
 
@@ -171,9 +171,44 @@ Health check endpoint for monitoring.
 ```json
 {
   "status": "healthy",
-  "message": "RAG API is operational",
-  "version": "2.0.0",
-  "environment": "development"
+  "message": "Agentic RAG API is running"
+}
+```
+
+#### `POST /upload`
+Upload a file and get a file ID for use in RAG requests.
+
+**Request:** Multipart form data with file
+**Response:**
+```json
+{
+  "file_id": "uuid-string",
+  "filename": "document.pdf",
+  "message": "File uploaded successfully"
+}
+```
+
+#### `GET /files/{file_id}`
+Get information about an uploaded file.
+
+**Response:**
+```json
+{
+  "file_id": "uuid-string",
+  "filename": "document.pdf",
+  "type": "pdf",
+  "size": 1024
+}
+```
+
+#### `DELETE /files/{file_id}`
+Delete an uploaded file.
+
+**Response:**
+```json
+{
+  "message": "File deleted successfully",
+  "filename": "document.pdf"
 }
 ```
 
@@ -185,7 +220,7 @@ Main RAG processing endpoint.
 {
   "query": "What is the main topic of the document?",
   "file_paths_urls": [
-    "path/to/document.pdf",
+    "file-uuid-here",
     "https://example.com/document.txt"
   ]
 }
@@ -195,14 +230,14 @@ Main RAG processing endpoint.
 ```json
 {
   "response": "The document discusses...",
-  "top_3_docs": [
+  "top_3_retrieved_docs": [
     "Retrieved document content 1",
     "Retrieved document content 2",
     "Retrieved document content 3"
   ],
   "metadata": [
     {
-      "source": "path/to/document.pdf",
+      "source": "document.pdf",
       "page": 1
     }
   ]
@@ -211,18 +246,34 @@ Main RAG processing endpoint.
 
 ### Example Usage
 
+#### File Upload and RAG Processing
 ```python
 import requests
 
-# RAG request
-response = requests.post("http://localhost:5001/rag", json={
+# 1. Upload a file
+with open("document.pdf", "rb") as f:
+    files = {"file": f}
+    upload_response = requests.post("http://localhost:5001/upload", files=files)
+    file_id = upload_response.json()["file_id"]
+
+# 2. Process RAG request
+rag_response = requests.post("http://localhost:5001/rag", json={
     "query": "What is the main topic of the document?",
-    "file_paths_urls": ["path/to/document.pdf"]
+    "file_paths_urls": [file_id]
 })
 
-result = response.json()
+result = rag_response.json()
 print(f"Answer: {result['response']}")
-print(f"Sources: {len(result['top_3_docs'])} documents retrieved")
+print(f"Sources: {len(result['top_3_retrieved_docs'])} documents retrieved")
+```
+
+#### Direct URL Processing
+```python
+# Process documents from URLs directly
+rag_response = requests.post("http://localhost:5001/rag", json={
+    "query": "What is the main topic?",
+    "file_paths_urls": ["https://example.com/document.txt"]
+})
 ```
 
 ## ⚙️ Configuration
@@ -232,30 +283,40 @@ print(f"Sources: {len(result['top_3_docs'])} documents retrieved")
 The main configuration file contains all settings:
 
 ```yaml
-# Document Processing Configuration
-document_processing:
-  chunk_size: 500
-  chunk_overlap: 100
-  supported_file_types: [pdf, docx, txt]
-  max_file_size_mb: 50
+# OpenAI Configuration
+openai:
+  api_key: ""  # Will be overridden by environment variable
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000
 
-
+# Model Configuration
+model_config:
+  response_model: "gpt-3.5-turbo"
+  grader_model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000
 
 # API Configuration
 api:
+  environment: "development"
   host: "0.0.0.0"
   port: 5001
-  debug: false
-  environment: "development"
+  debug: true
   log_level: "INFO"
-  cors_origins: ["*"]
+  cors_origins: ["http://localhost:3000", "http://localhost:8501", "http://127.0.0.1:8501"]
 
-# OpenAI Configuration
-openai:
-  api_key: ""
-  model: "gpt-4o-mini"
-  temperature: 0.7
-  max_tokens: 1000
+# Document Processing
+document:
+  chunk_size: 1000
+  chunk_overlap: 200
+  max_chunks: 100
+
+# RAG Configuration
+rag:
+  top_k: 5
+  similarity_threshold: 0.7
+  max_context_length: 4000
 ```
 
 ### Environment Variables
@@ -267,8 +328,9 @@ Environment variables can override configuration values:
 | `OPENAI_API_KEY` | Your OpenAI API key | **Required** |
 | `ENVIRONMENT` | Environment mode | `development` |
 | `LOG_LEVEL` | Logging level | `INFO` |
-| `CORS_ORIGINS` | Allowed CORS origins | `*` |
-| `ALLOWED_HOSTS` | Trusted hosts | `localhost,127.0.0.1` |
+| `HOST` | API host | `0.0.0.0` |
+| `PORT` | API port | `5001` |
+| `DEBUG` | Debug mode | `true` |
 
 ### Environment Setup
 
@@ -281,8 +343,9 @@ export OPENAI_API_KEY=your_openai_api_key_here
 # Optional: Set other environment variables
 export ENVIRONMENT=development
 export LOG_LEVEL=INFO
-export CORS_ORIGINS=http://localhost:3000,http://localhost:8080
-export ALLOWED_HOSTS=localhost,127.0.0.1
+export HOST=0.0.0.0
+export PORT=5001
+export DEBUG=true
 ```
 
 ## 🛠️ Development
@@ -293,6 +356,7 @@ export ALLOWED_HOSTS=localhost,127.0.0.1
 # Set development environment
 export ENVIRONMENT=development
 export LOG_LEVEL=DEBUG
+export DEBUG=true
 
 # Run with auto-reload
 python app.py
@@ -343,8 +407,7 @@ for event in rag_graph.workflow.stream({
 # Production environment variables
 export ENVIRONMENT=production
 export LOG_LEVEL=INFO
-export CORS_ORIGINS=https://yourdomain.com
-export ALLOWED_HOSTS=yourdomain.com
+export DEBUG=false
 ```
 
 ### Using Production Script
@@ -355,19 +418,6 @@ python app.py
 ```
 
 ### Docker Deployment
-
-#### Using Docker Compose (Recommended)
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop the service
-docker-compose down
-```
 
 #### Using Docker directly
 
@@ -382,8 +432,16 @@ docker run -p 5001:5001 --env-file .env agentic-rag-api
 docker run -p 5001:5001 \
   -e OPENAI_API_KEY=your_openai_api_key_here \
   -e ENVIRONMENT=production \
+  -e DEBUG=false \
   agentic-rag-api
 ```
+
+#### Dockerfile Features:
+- Python 3.11 slim base image
+- Non-root user for security
+- Health checks
+- Optimized layer caching
+- Minimal image size
 
 ### Using Gunicorn (Recommended)
 
@@ -394,24 +452,6 @@ pip install gunicorn
 # Run with Gunicorn
 gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app
 ```
-
-### Docker Deployment
-
-The project includes a production-ready Dockerfile and docker-compose.yml for easy deployment.
-
-#### Dockerfile Features:
-- Python 3.11 slim base image
-- Non-root user for security
-- Health checks
-- Optimized layer caching
-- Minimal image size
-
-#### Docker Compose Features:
-- Environment variable management
-- Volume mounts for persistence
-- Health checks
-- Automatic restart
-- Network isolation
 
 ### Systemd Service
 
@@ -427,7 +467,7 @@ Type=exec
 User=rag-api
 WorkingDirectory=/opt/agentic-rag-api
 Environment=PATH=/opt/agentic-rag-api/venv/bin
-ExecStart=/opt/agentic-rag-api/venv/bin/python start.py
+ExecStart=/opt/agentic-rag-api/venv/bin/python app.py
 Restart=always
 
 [Install]
@@ -482,13 +522,14 @@ Error: Out of memory
 ```
 Error: CORS policy violation
 ```
-**Solution**: Update `CORS_ORIGINS` in configuration
+**Solution**: Update `cors_origins` in configuration
 
 ### Debug Mode
 
 Enable debug logging:
 ```bash
 export LOG_LEVEL=DEBUG
+export DEBUG=true
 python app.py
 ```
 
@@ -540,6 +581,8 @@ For issues and questions:
 - Enhanced logging and monitoring
 - Improved error handling
 - Comprehensive documentation
+- File upload API endpoints
+- Docker containerization
 
 ### Version 1.0.0
 - Initial RAG implementation
